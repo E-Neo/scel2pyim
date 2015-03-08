@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
       out = fopen(argv[2], "wb");
       //information(in);
       //printf("converting...\n");
-      fprintf(out, ";; -*- coding: utf-8\n");
+      fprintf(out, ";; -*- coding: utf-8-unix; -*-\n");
       readandwrite(in, out);
       //printf("Done.\n");
     }
