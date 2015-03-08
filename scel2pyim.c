@@ -33,6 +33,7 @@ char unicode2utf8str(unsigned short in[], int insize, unsigned char out[])
   *out = 0;
   for (i = 0; i < insize; i++)
     {
+      if (in[i] > 0 && in[i] < 20) continue;
       str[unicode2utf8char(in[i], str)] = 0;
       strcat(out, str);
       if (in[i] == 0) break;
@@ -71,29 +72,10 @@ void mkpyimpylist(char *pydict[], unsigned short pysize, unsigned short pylistco
     }
 }
 
-void mkpyimwdlist(char *pydict[], unsigned short same, unsigned short wdsize[], unsigned short *wdlistcode[], char wdlist[])
-{
-  unsigned short i, j = same - 1;
-  char *p;
-  for (i = 0; i < same; i++)
-    {
-      p = (char*)malloc(3*wdsize[i]+1);
-      unicode2utf8str(wdlistcode[i], wdsize[i]/2, p);
-      strcat(wdlist, p);
-      free(p);
-      if (j)
-	{
-	  strcat(wdlist, " ");
-	  j--;
-	}
-    }
-}
-
 void writepyim(FILE *in, FILE *out, char *pydict[])
 {
-  unsigned short same, pysize, *pylistcode, *wdsize, **wdlistcode, extrsize, *extrlist, *p, i;
+  unsigned short same, pysize, *pylistcode, *wdsize, *wdlistcode, extrsize, *extrlist, i, j;
   char *pylist, *wdlist;
-  unsigned int len = 0;
   long end;
   fseek(in, 0, SEEK_END);
   end = ftell(in);
@@ -111,27 +93,24 @@ void writepyim(FILE *in, FILE *out, char *pydict[])
       free(pylistcode);
       free(pylist);
       wdsize = (unsigned short*)malloc(same*2);
-      wdlistcode = (unsigned short**)malloc(same*2);
-      for (i = 0; i < same; i++)
+      for (i = 0, j = same - 1; i < same; i++, j--)
 	{
 	  fread(&wdsize[i], 2, 1, in);
-	  wdlistcode[i] = (unsigned short*)malloc(wdsize[i]);
-	  fread(wdlistcode[i], 2, wdsize[i]/2, in);
+	  wdlistcode = (unsigned short*)malloc(wdsize[i]);
+	  fread(wdlistcode, 2, wdsize[i]/2, in);
+	  wdlist = (char*)malloc(3*wdsize[i]+1);
+	  unicode2utf8str(wdlistcode, wdsize[i]/2, wdlist);
+	  free(wdlistcode);
+	  fprintf(out, "%s", wdlist);
+	  if (j) fprintf(out, " ");
+	  free(wdlist);
 	  fread(&extrsize, 2, 1, in);
 	  extrlist = (unsigned short*)malloc(extrsize);
 	  fread(extrlist, 2, extrsize/2, in);
 	  free(extrlist);
 	}
-      for (i = 0; i < same; i++)
-	len += wdsize[i];
-      len /= 2;
-      wdlist = (char*)malloc(3*len+1);
-      wdlist[0] = 0;
-      mkpyimwdlist(pydict, same, wdsize, wdlistcode, wdlist);
-      fprintf(out, "%s\n", wdlist);
-      free(wdlist);
-      free(*wdlistcode);
-      free(wdsize);
+      fprintf(out, "\n");
+      //printf("%lx\n", ftell(in));
     }
 }
 
@@ -153,36 +132,27 @@ char readandwrite(FILE *in, FILE *out)
 char information(FILE *in)
 {
   char i;
-  unsigned short code[32];
-  unsigned char outstr[128];
+  unsigned short code[0x1000];
+  unsigned char outstr[0x2000+1];
   
   fseek(in, 0x130, SEEK_SET);
-  fread(code, 2, 32, in);
-  unicode2utf8str(code, 32, outstr);
+  fread(code, 2, 0x208, in);
+  unicode2utf8str(code, 0x208, outstr);
   printf("字库名称:%s\n", outstr);
   
   fseek(in, 0x338, SEEK_SET);
-  fread(code, 2, 32, in);
-  unicode2utf8str(code, 32, outstr);
+  fread(code, 2, 0x208, in);
+  unicode2utf8str(code, 0x208, outstr);
   printf("字库类别:%s\n",outstr);
   
   fseek(in, 0x540, SEEK_SET);
-  fread(code, 2, 32, in);
-  unicode2utf8str(code, 32, outstr);
+  fread(code, 2, 0x800, in);
+  unicode2utf8str(code, 0x800, outstr);
   printf("字库信息:%s\n", outstr);
   
   fseek(in, 0xd40, SEEK_SET);
-  for (i = 0; i < 32; i++)
-    {
-      fread(&code[i], 2, 1, in);
-      if (code[i] == 0x000d)
-	i--;
-      else if (code[i] == 0x0020)
-	{
-	  code[i] = ' ';
-	  unicode2utf8str(code, 32, outstr);
-	}
-    }  
+  fread(code, 2, 0x800, in);
+  unicode2utf8str(code, 0x800, outstr);
   printf("字库示例:%s\n", outstr); 
 }
 
