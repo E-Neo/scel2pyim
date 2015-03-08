@@ -182,11 +182,11 @@ int main(int argc, char *argv[])
   else
     {
       out = fopen(argv[2], "wb");
-      information(in);
-      printf("converting...\n");
+      //information(in);
+      //printf("converting...\n");
       fprintf(out, ";; -*- coding: utf-8\n");
       readandwrite(in, out);
-      printf("Done.\n");
+      //printf("Done.\n");
     }
   fclose(in);
   fclose(out);
