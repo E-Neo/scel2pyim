@@ -1,3 +1,22 @@
+/* Copyright (C) 2015 E-Neo <cyx95@mail.ustc.edu.cn>
+   
+   This file is part of scel2pyim.
+
+   scel2pyim is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   scel2pyim is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,7 +60,7 @@ char unicode2utf8str(unsigned short in[], int insize, unsigned char out[])
   return 0;
 }
 
-void mkpydict(FILE *in, char *pydict[])
+void mkpydict(FILE *in, char *pydict[]) /* Create a pinyin dictionary. */
 {
   int i;
   unsigned short addr, size, code[6];
@@ -110,7 +129,7 @@ void writepyim(FILE *in, FILE *out, char *pydict[])
 	  free(extrlist);
 	}
       fprintf(out, "\n");
-      //printf("%lx\n", ftell(in));
+      //printf("%lx\n", ftell(in)); /* Only for debugging purpose. */
     }
 }
 
@@ -119,14 +138,15 @@ char readandwrite(FILE *in, FILE *out)
   char buffer[5], *pydict[413], n;
   unsigned short code;
   fseek(in, 0x1540, SEEK_SET);
-  fgets(buffer,4, in);
-  if(memcmp(buffer,"\x9D\x01\x00\x00",4) != 0)
+  fread(buffer,1, 4, in);
+  if(memcmp(buffer, "\x9D\x01\x00\x00", 4) != 0)
     {
       printf("Can not find the beginning.\n");
       return -1;
     }
   mkpydict(in, pydict);
   writepyim(in, out, pydict);
+  return 0;
 }
 
 char information(FILE *in)
@@ -134,35 +154,36 @@ char information(FILE *in)
   char i;
   unsigned short code[0x1000];
   unsigned char outstr[0x2000+1];
-  
+  /* Decode Name. */
   fseek(in, 0x130, SEEK_SET);
   fread(code, 2, 0x208, in);
   unicode2utf8str(code, 0x208, outstr);
-  printf("字库名称:%s\n", outstr);
-  
+  printf("Name:        %s\n", outstr);
+  /* Decode Type. */
   fseek(in, 0x338, SEEK_SET);
   fread(code, 2, 0x208, in);
   unicode2utf8str(code, 0x208, outstr);
-  printf("字库类别:%s\n",outstr);
-  
+  printf("Type:        %s\n",outstr);
+  /* Decode Information. */
   fseek(in, 0x540, SEEK_SET);
   fread(code, 2, 0x800, in);
   unicode2utf8str(code, 0x800, outstr);
-  printf("字库信息:%s\n", outstr);
-  
+  printf("Information: %s\n", outstr);
+  /* Decode Examples. */
   fseek(in, 0xd40, SEEK_SET);
   fread(code, 2, 0x800, in);
   unicode2utf8str(code, 0x800, outstr);
-  printf("字库示例:%s\n", outstr); 
+  printf("Examples:    %s\n", outstr);
+  return 0;
 }
 
 int main(int argc, char *argv[])
 {
-  char str[9];
+  char str[12];
   FILE *in, *out;
-  if (argc != 3)
+  if (argc == 1)
     {
-      printf("Usage : %s name.sbcl file_out.\n", argv[0]);
+      fprintf(stderr, "Usage : %s name.sbcl -o file_out.\n", argv[0]);
       return 1;
     }
   in = fopen(argv[1], "rb");
@@ -172,22 +193,19 @@ int main(int argc, char *argv[])
       printf("Could not find \"%s\"\n", argv[1]);
       return 1;
     }
-  fgets(str, 8+1, in);
-  if(memcmp(str, "\x40\x15\x00\x00\x44\x43\x53\x01", 8))
+  fread(str, 1, 12, in);
+  if(memcmp(str, "\x40\x15\x00\x00\x44\x43\x53\x01\x01\x00\x00\x00", 12))
     {
       fclose(in);
       printf("\"%s\" is really not a .scel file.\n", argv[1]);
       return 1;
     }
-  else
-    {
-      out = fopen(argv[2], "wb");
-      //information(in);
-      //printf("converting...\n");
-      fprintf(out, ";; -*- coding: utf-8-unix; -*-\n");
-      readandwrite(in, out);
-      //printf("Done.\n");
-    }
+  out = fopen(argv[2], "wb");
+  //information(in);
+  //printf("converting...\n");
+  fprintf(out, ";; -*- coding: utf-8-unix; -*-\n");
+  readandwrite(in, out);
+  //printf("Done.\n");
   fclose(in);
   fclose(out);
   return 0;
