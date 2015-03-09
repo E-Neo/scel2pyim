@@ -181,23 +181,21 @@ int main(int argc, char *argv[])
 {
   char str[12];
   FILE *in, *out;
-  if (argc == 1)
+  if (argc != 3)
     {
-      fprintf(stderr, "Usage : %s name.sbcl -o file_out.\n", argv[0]);
+      fprintf(stderr, "Usage : %s name.sbcl file_out.\n", argv[0]);
       return 1;
     }
-  in = fopen(argv[1], "rb");
-  if (in == NULL)
+  if ((in=fopen(argv[1], "rb")) == NULL)
     {
-      fclose(in);
-      printf("Could not find \"%s\"\n", argv[1]);
+      fprintf(stderr, "Could not find \"%s\"\n", argv[1]);
       return 1;
     }
   fread(str, 1, 12, in);
   if(memcmp(str, "\x40\x15\x00\x00\x44\x43\x53\x01\x01\x00\x00\x00", 12))
     {
       fclose(in);
-      printf("\"%s\" is really not a .scel file.\n", argv[1]);
+      fprintf(stderr, "\"%s\" is really not a .scel file.\n", argv[1]);
       return 1;
     }
   out = fopen(argv[2], "wb");
