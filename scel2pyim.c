@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
   FILE *in, *out;
   if (argc != 3)
     {
-      fprintf(stderr, "Usage : %s name.sbcl file_out.\n", argv[0]);
+      fprintf(stderr, "Usage : %s /path/to/NAME.scel /path/to/NAME.pyim\n", argv[0]);
       return 1;
     }
   if ((in=fopen(argv[1], "rb")) == NULL)
