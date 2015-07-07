@@ -1,4 +1,4 @@
-/* Copyright (C) 2015 E-Neo <cyx95@mail.ustc.edu.cn>
+/* Copyright (C) 2015 E-Neo <e-neo@qq.com>
    
    This file is part of scel2pyim.
 
