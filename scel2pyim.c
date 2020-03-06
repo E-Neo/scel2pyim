@@ -1,4 +1,4 @@
-/* Copyright (C) 2015 E-Neo <e-neo@qq.com>
+/* Copyright (C) 2015-2020 E-Neo <e-neo@qq.com>
 
    This file is part of scel2pyim.
 
@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int
+static int
 unicode2utf8char (unsigned short in, char *out)
 {
   if (in <= 0x007f)
@@ -46,41 +46,43 @@ unicode2utf8char (unsigned short in, char *out)
     return -1;
 }
 
-int
+static int
 unicode2utf8str (unsigned short *in, int insize, char *out)
 {
-  char str[3+1];
+  char str[3 + 1];
   int i;
   *out = 0;
   for (i = 0; i < insize; i++)
     {
-      if (in[i] > 0 && in[i] < 20) continue;
-      str[unicode2utf8char(in[i], str)] = 0;
+      if (in[i] > 0 && in[i] < 20)
+        continue;
+      str[unicode2utf8char (in[i], str)] = 0;
       strcat (out, str);
-      if (in[i] == 0) break;
+      if (in[i] == 0)
+        break;
     }
   return 0;
 }
 
-void
+static void
 mkpydict (FILE *in, char *pydict[]) /* Create a pinyin dictionary. */
 {
   int i;
   unsigned short addr, size, code[6];
   char *p;
   fseek (in, 0x1544, SEEK_SET);
-  for (i = 0 ; i < 413; i++)
+  for (i = 0; i < 413; i++)
     {
-      p = (char*)malloc(7);
+      p = (char *)malloc (7);
       fread (&addr, 2, 1, in);
       fread (&size, 2, 1, in);
-      fread (code, 2, size/2, in);
-      unicode2utf8str (code, size/2, p);
+      fread (code, 2, size / 2, in);
+      unicode2utf8str (code, size / 2, p);
       pydict[addr] = p;
     }
 }
 
-void
+static void
 mkpyimpylist (char *pydict[], unsigned short pysize,
               unsigned short pylistcode[], char pylist[])
 {
@@ -89,14 +91,14 @@ mkpyimpylist (char *pydict[], unsigned short pysize,
     {
       strcat (pylist, pydict[pylistcode[i]]);
       if (j)
-	{
-	  strcat (pylist, "-");
-	  j--;
-	}
+        {
+          strcat (pylist, "-");
+          j--;
+        }
     }
 }
 
-void
+static void
 writepyim (FILE *in, FILE *out, char *pydict[])
 {
   unsigned short same, pysize, *pylistcode;
@@ -104,114 +106,93 @@ writepyim (FILE *in, FILE *out, char *pydict[])
   char *pylist, *wdlist;
   long end;
   fseek (in, 0, SEEK_END);
-  end = ftell(in);
+  end = ftell (in);
   fseek (in, 0x2628, SEEK_SET);
-  while (ftell(in) != end)
+  while (ftell (in) != end)
     {
       fread (&same, 2, 1, in);
       fread (&pysize, 2, 1, in);
-      pylistcode = (unsigned short*) malloc(pysize);
-      fread (pylistcode, 2, pysize/2, in);
-      pylist = (char*)malloc (pysize*7);
+      pylistcode = (unsigned short *)malloc (pysize);
+      fread (pylistcode, 2, pysize / 2, in);
+      pylist = (char *)malloc (pysize * 7);
       pylist[0] = 0;
-      mkpyimpylist (pydict, pysize/2, pylistcode, pylist);
+      mkpyimpylist (pydict, pysize / 2, pylistcode, pylist);
       fprintf (out, "%s ", pylist);
       free (pylistcode);
       free (pylist);
-      wdsize = (unsigned short*)malloc (same*2);
+      wdsize = (unsigned short *)malloc (same * 2);
       for (i = 0, j = same - 1; i < same; i++, j--)
-	{
-	  fread (&wdsize[i], 2, 1, in);
-	  wdlistcode = (unsigned short*)malloc (wdsize[i]);
-	  fread (wdlistcode, 2, wdsize[i]/2, in);
-	  wdlist = (char*)malloc (3*wdsize[i]+1);
-	  unicode2utf8str (wdlistcode, wdsize[i]/2, wdlist);
-	  free (wdlistcode);
-	  fprintf (out, "%s", wdlist);
-	  if (j) fprintf(out, " ");
-	  free (wdlist);
-	  fread (&extrsize, 2, 1, in);
-	  extrlist = (unsigned short*)malloc (extrsize);
-	  fread (extrlist, 2, extrsize/2, in);
-	  free (extrlist);
-	}
+        {
+          fread (&wdsize[i], 2, 1, in);
+          wdlistcode = (unsigned short *)malloc (wdsize[i]);
+          fread (wdlistcode, 2, wdsize[i] / 2, in);
+          wdlist = (char *)malloc (3 * wdsize[i] + 1);
+          unicode2utf8str (wdlistcode, wdsize[i] / 2, wdlist);
+          free (wdlistcode);
+          fprintf (out, "%s", wdlist);
+          if (j)
+            fprintf (out, " ");
+          free (wdlist);
+          fread (&extrsize, 2, 1, in);
+          extrlist = (unsigned short *)malloc (extrsize);
+          fread (extrlist, 2, extrsize / 2, in);
+          free (extrlist);
+        }
+      free (wdsize);
       fprintf (out, "\n");
-      //printf("%lx\n", ftell(in)); /* Only for debugging purpose. */
     }
 }
 
-char
+static int
 readandwrite (FILE *in, FILE *out)
 {
   char buffer[5], *pydict[413];
   fseek (in, 0x1540, SEEK_SET);
-  fread (buffer,1, 4, in);
-  if(memcmp (buffer, "\x9D\x01\x00\x00", 4) != 0)
-    {
-      printf ("Can not find the beginning.\n");
-      return -1;
-    }
+  fread (buffer, 1, 4, in);
+  if (memcmp (buffer, "\x9D\x01\x00\x00", 4) != 0)
+    return -1;
   mkpydict (in, pydict);
   writepyim (in, out, pydict);
+  for (size_t i = 0; i < 413; i++)
+    free (pydict[i]);
   return 0;
 }
 
-char
-information (FILE *in)
+int
+main (int argc, char *argv[])
 {
-  unsigned short code[0x1000];
-  char outstr[0x2000+1];
-  /* Decode Name. */
-  fseek (in, 0x130, SEEK_SET);
-  fread (code, 2, 0x208, in);
-  unicode2utf8str (code, 0x208, outstr);
-  printf ("Name:        %s\n", outstr);
-  /* Decode Type. */
-  fseek (in, 0x338, SEEK_SET);
-  fread (code, 2, 0x208, in);
-  unicode2utf8str (code, 0x208, outstr);
-  printf ("Type:        %s\n",outstr);
-  /* Decode Information. */
-  fseek (in, 0x540, SEEK_SET);
-  fread (code, 2, 0x800, in);
-  unicode2utf8str (code, 0x800, outstr);
-  printf ("Information: %s\n", outstr);
-  /* Decode Examples. */
-  fseek (in, 0xd40, SEEK_SET);
-  fread (code, 2, 0x800, in);
-  unicode2utf8str (code, 0x800, outstr);
-  printf ("Examples:    %s\n", outstr);
-  return 0;
-}
-
-int main(int argc, char *argv[])
-{
-  char str[12];
   FILE *in, *out;
   if (argc != 3)
     {
-      fprintf(stderr, "Usage : %s /path/to/NAME.scel /path/to/NAME.pyim\n", argv[0]);
-      return 1;
+      fprintf (stderr, "Usage : %s /path/to/NAME.scel /path/to/NAME.pyim\n",
+               argv[0]);
+      return EXIT_FAILURE;
     }
-  if ((in=fopen(argv[1], "rb")) == NULL)
+  if ((in = fopen (argv[1], "rb")) == NULL)
     {
-      fprintf(stderr, "Could not find \"%s\"\n", argv[1]);
-      return 1;
+      fprintf (stderr, "Could not find \"%s\"\n", argv[1]);
+      return EXIT_FAILURE;
     }
-  fread(str, 1, 12, in);
-  if(memcmp(str, "\x40\x15\x00\x00\x44\x43\x53\x01\x01\x00\x00\x00", 12))
+  char buffer[12];
+  fread (buffer, 1, 12, in);
+  if (memcmp (buffer, "\x40\x15\x00\x00\x44\x43\x53\x01\x01\x00\x00\x00", 12))
     {
-      fclose(in);
-      fprintf(stderr, "\"%s\" is really not a .scel file.\n", argv[1]);
-      return 1;
+      fclose (in);
+      fprintf (stderr, "\"%s\" is not a valid scel file.\n", argv[1]);
+      return EXIT_FAILURE;
     }
-  out = fopen(argv[2], "wb");
-  //information(in);
-  //printf("converting...\n");
-  fprintf(out, ";; -*- coding: utf-8-unix; -*-\n");
-  readandwrite(in, out);
-  //printf("Done.\n");
-  fclose(in);
-  fclose(out);
+  if ((out = fopen (argv[2], "wb")) == NULL)
+    {
+      fprintf (stderr, "Could not open \"%s\"\n", argv[2]);
+      return EXIT_FAILURE;
+    }
+  fprintf (out, ";; -*- coding: utf-8-unix; -*-\n");
+  if (readandwrite (in, out) < 0)
+    {
+      fprintf (stderr, "\"%s\" is not a valid scel file.\n", argv[1]);
+      return EXIT_FAILURE;
+    }
+  fclose (in);
+  fclose (out);
   return 0;
 }
